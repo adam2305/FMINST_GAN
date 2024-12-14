@@ -91,15 +91,16 @@ optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=learming_rate)
 
 def train_discriminator(real_images, labels):
     optimizer_D.zero_grad()
+    batch_size = real_images.size(0)
     # train with real images
     real_validity = discriminator(real_images, labels)
-    real_loss = criterion(real_validity, torch.ones(BATCH_SIZE).to(device))
+    real_loss = criterion(real_validity, torch.ones(batch_size).to(device))
     # train with fake images
-    z = torch.randn(BATCH_SIZE, 100).to(device)
-    fake_labels = torch.LongTensor(np.random.randint(0, 10, BATCH_SIZE)).to(device)
+    z = torch.randn(batch_size, 100).to(device)
+    fake_labels = torch.LongTensor(np.random.randint(0, 10, batch_size)).to(device)
     fake_images = generator(z, fake_labels)
     fake_validity = discriminator(fake_images, fake_labels)
-    fake_loss = criterion(fake_validity, torch.zeros(BATCH_SIZE).to(device))
+    fake_loss = criterion(fake_validity, torch.zeros(batch_size).to(device))
 
     d_loss = real_loss + fake_loss
     d_loss.backward()
