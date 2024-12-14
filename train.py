@@ -9,7 +9,7 @@ import numpy as np
 print('Dataset loading...')
 
 img_dim = 100
-BATCH_SIZE = 32
+BATCH_SIZE = 512
 Image_size = 28 * 28
 class_label_size = 10
 
@@ -73,7 +73,7 @@ class Discriminator(nn.Module):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-epochs = 1
+epochs = 150
 learming_rate = 0.0001
 Times_train_discrimnizator=5
 
@@ -117,30 +117,34 @@ def train_generator():
     optimizer_G.step()
     return g_loss.item()
 
-d_loss_list=[]
-g_loss_list=[]
-for epoch in tqdm(range(epochs)):
-    for i, (images, labels) in enumerate(train_loader):
-        real_images = images.to(device)
-        labels = labels.to(device)
-        generator.train()
-        d_loss = 0
-        for _ in range(Times_train_discrimnizator):
-            d_loss = train_discriminator(real_images, labels)
-        g_loss = train_generator()
+def train():
+    d_loss_list=[]
+    g_loss_list=[]
+    for epoch in tqdm(range(epochs)):
+        for i, (images, labels) in enumerate(train_loader):
+            real_images = images.to(device)
+            labels = labels.to(device)
+            generator.train()
+            d_loss = 0
+            for _ in range(Times_train_discrimnizator):
+                d_loss = train_discriminator(real_images, labels)
+            g_loss = train_generator()
 
-    print(f"EPOCH: {epoch} | D_Loss: {d_loss:.5f} | G_Loss: {g_loss:.5f}")
-    d_loss_list.append(d_loss)
-    g_loss_list.append(g_loss)
+        print(f"EPOCH: {epoch} | D_Loss: {d_loss:.5f} | G_Loss: {g_loss:.5f}")
+        d_loss_list.append(d_loss)
+        g_loss_list.append(g_loss)
 
-# Create directories if they do not exist
-os.makedirs('checkpoints', exist_ok=True)
-os.makedirs('history', exist_ok=True)
+    # Create directories if they do not exist
+    os.makedirs('checkpoints', exist_ok=True)
+    os.makedirs('history', exist_ok=True)
 
-# Save models
-torch.save(generator.state_dict(), 'checkpoints/generator.pth')
-torch.save(discriminator.state_dict(), 'checkpoints/discriminator.pth')
+    # Save models
+    torch.save(generator.state_dict(), 'checkpoints/generator.pth')
+    torch.save(discriminator.state_dict(), 'checkpoints/discriminator.pth')
 
-# Save losses
-torch.save({'G_losses': g_loss_list, 'D_losses': d_loss_list}, 'history/losses.pth')
+    # Save losses
+    torch.save({'G_losses': g_loss_list, 'D_losses': d_loss_list}, 'history/losses.pth')
+
+if __name__ == '__main__':
+    train()
 
