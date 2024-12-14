@@ -135,9 +135,18 @@ def train():
         d_loss_list.append(d_loss)
         g_loss_list.append(g_loss)
 
+        if (epoch + 1) % 10 == 0:
+            # Save models
+            torch.save(generator.state_dict(), f'checkpoints/generator_epoch_{epoch + 1}.pth')
+            torch.save(discriminator.state_dict(), f'checkpoints/discriminator_epoch_{epoch + 1}.pth')
+
+            # Save losses
+            torch.save({'G_losses': g_loss_list, 'D_losses': d_loss_list}, f'history/losses_epoch_{epoch + 1}.pth')
+
     # Create directories if they do not exist
     os.makedirs('checkpoints', exist_ok=True)
     os.makedirs('history', exist_ok=True)
+
 
     # Save models
     torch.save(generator.state_dict(), 'checkpoints/generator.pth')
