@@ -1,71 +1,146 @@
 import torch
 import os
-from tqdm import trange
-import argparse
+from tqdm import tqdm
 from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
 import torch.nn as nn
-import torch.optim as optim
+import numpy as np
 
-from model import Generator, Discriminator
-from utils import D_train, G_train, save_models
+print('Dataset loading...')
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train Conditional GAN.')
-    parser.add_argument("--epochs", type=int, default=100, help="Number of epochs for training.")
-    parser.add_argument("--lr", type=float, default=0.0002, help="The learning rate to use for training.")
-    parser.add_argument("--batch_size", type=int, default=64, help="Size of mini-batches for SGD")
-    parser.add_argument("--smoothing", type=float, default=0.1, help="Label smoothing factor")
+img_dim = 100
+BATCH_SIZE = 32
+Image_size = 28 * 28
+class_label_size = 10
 
-    args = parser.parse_args()
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=(0.5,), std=(0.5,))])
+train_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=True, transform=transform, download=True)
+train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+print('Dataset Loaded.')
 
-    os.makedirs('checkpoints', exist_ok=True)
-    os.makedirs('data', exist_ok=True)
+############################################################################################################################################################################
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+class Generator(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-    print('Dataset loading...')
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=(0.5,), std=(0.5,))
-    ])
+        self.label_emb = nn.Embedding(class_label_size, class_label_size)
 
-    train_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=True, transform=transform, download=True)
-    test_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=False, transform=transform, download=False)
+        self.model = nn.Sequential(
+            nn.Linear(img_dim + class_label_size, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(512, 1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(1024, Image_size),
+            nn.Tanh()
+        )
 
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=args.batch_size, shuffle=False)
-    print('Dataset Loaded.')
+    def forward(self, z, labels):
+        z = z.view(z.size(0), 100)
+        c = self.label_emb(labels)
+        x = torch.cat([z, c], 1)
+        out = self.model(x)
+        return out.view(x.size(0), 28, 28)
 
-    print('Model Loading...')
-    mnist_dim = 784
-    num_classes = 10
-    G = torch.nn.DataParallel(Generator(g_output_dim=mnist_dim, num_classes=num_classes)).to(device)
-    D = torch.nn.DataParallel(Discriminator(d_input_dim=mnist_dim, num_classes=num_classes)).to(device)
+class Discriminator(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-    print('Model loaded.')
-    criterion = nn.BCELoss()
-    G_optimizer = optim.Adam(G.parameters(), lr=args.lr)
-    D_optimizer = optim.Adam(D.parameters(), lr=args.lr)
+        self.label_emb = nn.Embedding(class_label_size, class_label_size)
 
-    print('Start Training :')
+        self.model = nn.Sequential(
+            nn.Linear(Image_size + class_label_size, 1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(1024, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
 
-    n_epoch = args.epochs
-    G_losses = []
-    D_losses = []
+    def forward(self, x, labels):
+        x = x.view(x.size(0), 784)
+        c = self.label_emb(labels)
+        x = torch.cat([x, c], 1)
+        out = self.model(x)
+        return out.squeeze()
 
-    for epoch in trange(1, n_epoch + 1, leave=True):
-        for batch_idx, (x, labels) in enumerate(train_loader):
-            x = x.view(-1, mnist_dim).to(device)
-            labels = labels.to(device)
-            D_loss = D_train(x, labels, G, D, D_optimizer, criterion, device, args.smoothing)
-            G_loss = G_train(x, labels, G, D, G_optimizer, criterion, device, args.smoothing)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-            G_losses.append(G_loss)
-            D_losses.append(D_loss)
+epochs = 1
+learming_rate = 0.0001
+Times_train_discrimnizator=5
 
-    save_models(G, D, 'checkpoints')
+# Loss function
+criterion = nn.BCELoss()
 
-    print('Training done')
+# Initialize generator and discriminator
+generator = Generator().to(device)
+discriminator = Discriminator().to(device)
 
-    # Save losses for later plotting
-    torch.save({'G_losses': G_losses, 'D_losses': D_losses}, 'history/losses.pth')
+# Optimizers
+optimizer_G = torch.optim.Adam(generator.parameters(), lr=learming_rate)
+optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=learming_rate)
+
+
+def train_discriminator(real_images, labels):
+    optimizer_D.zero_grad()
+    # train with real images
+    real_validity = discriminator(real_images, labels)
+    real_loss = criterion(real_validity, torch.ones(BATCH_SIZE).to(device))
+    # train with fake images
+    z = torch.randn(BATCH_SIZE, 100).to(device)
+    fake_labels = torch.LongTensor(np.random.randint(0, 10, BATCH_SIZE)).to(device)
+    fake_images = generator(z, fake_labels)
+    fake_validity = discriminator(fake_images, fake_labels)
+    fake_loss = criterion(fake_validity, torch.zeros(BATCH_SIZE).to(device))
+
+    d_loss = real_loss + fake_loss
+    d_loss.backward()
+    optimizer_D.step()
+    return d_loss.item()
+
+def train_generator():
+    optimizer_G.zero_grad()
+    z =torch.randn(BATCH_SIZE, 100).to(device)
+    fake_labels = torch.LongTensor(np.random.randint(0, 10, BATCH_SIZE)).to(device)
+    fake_images = generator(z, fake_labels)
+    validity = discriminator(fake_images, fake_labels)
+    g_loss = criterion(validity, torch.ones(BATCH_SIZE).to(device))
+    g_loss.backward()
+    optimizer_G.step()
+    return g_loss.item()
+
+d_loss_list=[]
+g_loss_list=[]
+for epoch in tqdm(range(epochs)):
+    for i, (images, labels) in enumerate(train_loader):
+        real_images = images.to(device)
+        labels = labels.to(device)
+        generator.train()
+        d_loss = 0
+        for _ in range(Times_train_discrimnizator):
+            d_loss = train_discriminator(real_images, labels)
+        g_loss = train_generator()
+
+    print(f"EPOCH: {epoch} | D_Loss: {d_loss:.5f} | G_Loss: {g_loss:.5f}")
+    d_loss_list.append(d_loss)
+    g_loss_list.append(g_loss)
+
+# Create directories if they do not exist
+os.makedirs('checkpoints', exist_ok=True)
+os.makedirs('history', exist_ok=True)
+
+# Save models
+torch.save(generator.state_dict(), 'checkpoints/generator.pth')
+torch.save(discriminator.state_dict(), 'checkpoints/discriminator.pth')
+
+# Save losses
+torch.save({'G_losses': g_loss_list, 'D_losses': d_loss_list}, 'history/losses.pth')
+
