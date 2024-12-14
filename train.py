@@ -9,7 +9,7 @@ import numpy as np
 print('Dataset loading...')
 
 img_dim = 100
-BATCH_SIZE = 512
+BATCH_SIZE = 32
 Image_size = 28 * 28
 class_label_size = 10
 
@@ -73,9 +73,9 @@ class Discriminator(nn.Module):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-epochs = 150
+epochs = 200
 learming_rate = 0.0001
-Times_train_discrimnizator=3
+Times_train_discrimnizator=5
 
 # Loss function
 criterion = nn.BCELoss()
