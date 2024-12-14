@@ -9,7 +9,7 @@ import numpy as np
 print('Dataset loading...')
 
 img_dim = 100
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 Image_size = 28 * 28
 class_label_size = 10
 
