@@ -9,7 +9,7 @@ import numpy as np
 print('Dataset loading...')
 
 img_dim = 100
-BATCH_SIZE = 32
+BATCH_SIZE = 256
 Image_size = 28 * 28
 class_label_size = 10
 
@@ -81,8 +81,8 @@ Times_train_discrimnizator=5
 criterion = nn.BCELoss()
 
 # Initialize generator and discriminator
-generator = Generator().to(device)
-discriminator = Discriminator().to(device)
+generator = nn.DataParallel(Generator().to(device))
+discriminator = nn.DataParallel(Discriminator().to(device))
 
 # Optimizers
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=learming_rate)
