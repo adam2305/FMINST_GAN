@@ -14,6 +14,7 @@ if __name__ == '__main__':
     parser.add_argument("--epochs", type=int, default=100, help="Number of epochs for training.")
     parser.add_argument("--lr", type=float, default=0.0002, help="The learning rate to use for training.")
     parser.add_argument("--batch_size", type=int, default=64, help="Size of mini-batches for SGD")
+    parser.add_argument("--smoothing", type=float, default=0.1, help="Label smoothing factor")
 
     args = parser.parse_args()
 
@@ -49,14 +50,22 @@ if __name__ == '__main__':
     print('Start Training :')
 
     n_epoch = args.epochs
+    G_losses = []
+    D_losses = []
+
     for epoch in trange(1, n_epoch + 1, leave=True):
         for batch_idx, (x, labels) in enumerate(train_loader):
             x = x.view(-1, mnist_dim).to(device)
             labels = labels.to(device)
-            D_train(x, labels, G, D, D_optimizer, criterion, device)
-            G_train(x, labels, G, D, G_optimizer, criterion, device)
+            D_loss = D_train(x, labels, G, D, D_optimizer, criterion, device, args.smoothing)
+            G_loss = G_train(x, labels, G, D, G_optimizer, criterion, device, args.smoothing)
 
+            G_losses.append(G_loss)
+            D_losses.append(D_loss)
 
     save_models(G, D, 'checkpoints')
 
     print('Training done')
+
+    # Save losses for later plotting
+    torch.save({'G_losses': G_losses, 'D_losses': D_losses}, 'history/losses.pth')

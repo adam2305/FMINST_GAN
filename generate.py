@@ -19,7 +19,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = Generator(g_output_dim=mnist_dim, num_classes=num_classes).to(device)
-    model = load_model(model, 'checkpoints')
+    model = load_model(model, 'checkpoints', device)
     model = torch.nn.DataParallel(model).to(device)
     model.eval()
 
