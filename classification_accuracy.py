@@ -2,13 +2,17 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
+from model import Generator
 
 # Configuration
 batch_size = 64
 num_epochs = 10
 learning_rate = 0.001
+latent_dim = 100
+num_classes = 10
+samples_per_class = 1000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load Fashion MNIST test dataset
@@ -80,3 +84,52 @@ with torch.no_grad():
 
 accuracy = 100 * correct / total
 print(f'Validation Accuracy: {accuracy:.2f}%')
+
+# Function to generate samples
+def generate_samples(generator, latent_dim, num_classes, samples_per_class, device):
+    generator.eval()
+    generated_images = []
+    generated_labels = []
+
+    with torch.no_grad():
+        for class_label in range(num_classes):
+            noise = torch.randn(samples_per_class, latent_dim).to(device)
+            labels = torch.full((samples_per_class,), class_label, dtype=torch.long).to(device)
+            fake_images = generator(noise, labels)
+            generated_images.append(fake_images)
+            generated_labels.append(labels)
+
+    generated_images = torch.cat(generated_images)
+    generated_labels = torch.cat(generated_labels)
+    return generated_images, generated_labels
+
+# Function to evaluate CNN model on generated samples
+def evaluate_on_generated_samples(model, generator, latent_dim, num_classes, samples_per_class, device):
+    generated_images, generated_labels = generate_samples(generator, latent_dim, num_classes, samples_per_class, device)
+    transform = transforms.Compose([transforms.Normalize(mean=(0.5,), std=(0.5,))])
+    generated_images = transform(generated_images)
+    generated_dataset = TensorDataset(generated_images.unsqueeze(1), generated_labels)
+    generated_loader = DataLoader(generated_dataset, batch_size=64, shuffle=False)
+
+    model.eval()
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for images, labels in generated_loader:
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    accuracy = 100 * correct / total
+    print(f'Generated Samples Accuracy: {accuracy:.2f}%')
+
+# Load the generator model
+generator = Generator(img_dim=latent_dim, class_label_size=num_classes, Image_size=28 * 28).to(device)
+state_dict = torch.load('checkpoints/generator_epoch_200.pth', map_location=device)
+new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+generator.load_state_dict(new_state_dict)
+
+# Evaluate the CNN model on generated samples
+evaluate_on_generated_samples(model, generator, latent_dim, num_classes, samples_per_class, device)
