@@ -1,41 +1,51 @@
 import torch
 from model import Generator
 from matplotlib import pyplot as plt
-
-epoch_number = 100
+import os
 
 img_dim = 100
 class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-generator = Generator().to(device)
+def generate_images(epoch_number):
+    generator = Generator().to(device)
+    state_dict = torch.load(f'checkpoints/generator_epoch_{epoch_number}.pth', map_location=device)
+    new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+    generator.load_state_dict(new_state_dict)
 
-# Load the state dictionary and remove 'module.' prefix
-state_dict = torch.load(f'checkpoints/generator_epoch_{epoch_number}.pth', map_location=device)
-new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
-generator.load_state_dict(new_state_dict)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
 
-torch.manual_seed(42)
-torch.cuda.manual_seed(42)
+    noise_test = torch.randn(img_dim).unsqueeze(0).to(device)
+    label_list = [torch.LongTensor([x]).to(device) for x in range(10)]
 
-noise_test = torch.randn(img_dim)
-noise_test.unsqueeze_(dim=0)
-label_list = []
-for x in range(0, 10):
-    label_list.append(torch.LongTensor([x]))
+    generator.eval()
+    gan_img_test_list = []
+    for label in label_list:
+        with torch.inference_mode():
+            gan_img_test = generator(noise_test, label)
+            gan_img_test = gan_img_test.squeeze().reshape(28, 28).cpu().detach().numpy()
+            gan_img_test_list.append(gan_img_test)
 
-generator.eval()
-gan_img_test_list = []
-for x in range(0, 10):
-    with torch.inference_mode():
-        gan_img_test = generator(noise_test, label_list[x])
-        gan_img_test = gan_img_test.squeeze().reshape(28, 28).to(device).detach().numpy()
-        gan_img_test_list.append(gan_img_test)
+    return gan_img_test_list
 
-f = plt.figure(figsize=(16, 16))
-for x in range(0, 10):
-    f.add_subplot(1, 10, x + 1)
-    plt.imshow(gan_img_test_list[x], cmap='gray')
-    plt.title(f"{class_names[x]}")
-plt.show()
+def save_all_images(epochs):
+    rows = epochs
+    cols = 10
+    fig, axes = plt.subplots(rows, cols, figsize=(16, 16 * rows / cols))
+    for epoch in range(1, epochs + 1):
+        gan_img_test_list = generate_images(epoch * 10)
+        for i, img in enumerate(gan_img_test_list):
+            ax = axes[epoch - 1, i]
+            ax.imshow(img, cmap='gray')
+            if i == 0:
+                ax.set_ylabel(f"Epoch {epoch * 10}", fontsize=12)
+            ax.set_title(class_names[i])
+            ax.axis('on')
+    plt.tight_layout()
+    plt.savefig('compare/all_epochs.png')
+    plt.close()
+
+if __name__ == '__main__':
+    os.makedirs('images', exist_ok=True)
+    save_all_images(20)  # Adjust the number of epochs if necessary
