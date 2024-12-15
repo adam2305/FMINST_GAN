@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, transforms, models
+from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -13,8 +13,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load Fashion MNIST test dataset
 transform = transforms.Compose([
-    transforms.Grayscale(num_output_channels=3),  # Convert grayscale images to 3 channels
-    transforms.Resize((224, 224)),  # Resize images to 224x224 for MobileNet
+    transforms.Resize((28, 28)),  # Resize images to 28x28 for the simple CNN
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5,), std=(0.5,))
 ])
@@ -22,10 +21,26 @@ transform = transforms.Compose([
 test_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=False, transform=transform, download=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
-# Define MobileNet model
-model = models.mobilenet_v2(pretrained=True)
-model.classifier[1] = nn.Linear(model.classifier[1].in_features, 10)  # Modify the last layer for 10 classes
-model = model.to(device)
+# Define a simple CNN model
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super(SimpleCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.fc1 = nn.Linear(64 * 7 * 7, 128)
+        self.fc2 = nn.Linear(128, 10)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.pool(self.relu(self.conv1(x)))
+        x = self.pool(self.relu(self.conv2(x)))
+        x = x.view(-1, 64 * 7 * 7)
+        x = self.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+model = SimpleCNN().to(device)
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
