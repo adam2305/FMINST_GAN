@@ -43,8 +43,8 @@ with torch.no_grad():
 
         # Save real and fake images
         for j in range(real_images.size(0)):
-            real_img = transforms.ToPILImage()(real_images[j].cpu())
-            fake_img = transforms.ToPILImage()(fake_images[j].cpu())
+            real_img = transforms.ToPILImage()(real_images[j].to(device))
+            fake_img = transforms.ToPILImage()(fake_images[j].to(device))
             real_img.save(f'real_images/real_{i * batch_size + j}.png')
             fake_img.save(f'fake_images/fake_{i * batch_size + j}.png')
 

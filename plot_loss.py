@@ -11,6 +11,7 @@ losses = torch.load('history/losses.pth')
 G_losses = losses['G_losses']
 D_losses = losses['D_losses']
 
+print("index of min", G_losses.index(min(G_losses)))
 
 # Plot the losses
 plt.figure(figsize=(10, 5))
