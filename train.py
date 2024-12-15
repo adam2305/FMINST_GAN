@@ -5,6 +5,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import numpy as np
+from model import Generator, Discriminator
 
 print('Dataset loading...')
 

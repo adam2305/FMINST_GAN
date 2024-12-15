@@ -1,13 +1,16 @@
 import torch
 import matplotlib.pyplot as plt
 
+epoch_number = 200
+
+# Load the losses
+losses = torch.load(f'history/losses_epoch_{epoch_number}.pth')
+
 # Load the losses
 losses = torch.load('history/losses.pth')
 G_losses = losses['G_losses']
 D_losses = losses['D_losses']
 
-print(G_losses)
-print(D_losses)
 
 # Plot the losses
 plt.figure(figsize=(10, 5))
