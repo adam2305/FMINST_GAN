@@ -5,6 +5,10 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 from model import Generator
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Configuration
 batch_size = 64
@@ -74,6 +78,8 @@ for epoch in tqdm(range(num_epochs)):
 model.eval()
 correct = 0
 total = 0
+all_labels = []
+all_preds = []
 with torch.no_grad():
     for images, labels in test_loader:
         images, labels = images.to(device), labels.to(device)
@@ -81,9 +87,20 @@ with torch.no_grad():
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
+        all_labels.extend(labels.cpu().numpy())
+        all_preds.extend(predicted.cpu().numpy())
 
 accuracy = 100 * correct / total
 print(f'Validation Accuracy: {accuracy:.2f}%')
+
+# Save confusion matrix for validation samples
+cm = confusion_matrix(all_labels, all_preds)
+plt.figure(figsize=(10, 8))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=np.arange(10), yticklabels=np.arange(10))
+plt.xlabel('Predicted')
+plt.ylabel('True')
+plt.title('Confusion Matrix - Validation Samples')
+plt.savefig('confusion_matrix_validation.png')
 
 # Function to generate samples
 def generate_samples(generator, latent_dim, num_classes, samples_per_class, device):
@@ -114,6 +131,8 @@ def evaluate_on_generated_samples(model, generator, latent_dim, num_classes, sam
     model.eval()
     correct = 0
     total = 0
+    all_labels = []
+    all_preds = []
     with torch.no_grad():
         for images, labels in generated_loader:
             images, labels = images.to(device), labels.to(device)
@@ -121,9 +140,20 @@ def evaluate_on_generated_samples(model, generator, latent_dim, num_classes, sam
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            all_labels.extend(labels.cpu().numpy())
+            all_preds.extend(predicted.cpu().numpy())
 
     accuracy = 100 * correct / total
     print(f'Generated Samples Accuracy: {accuracy:.2f}%')
+
+    # Save confusion matrix for generated samples
+    cm = confusion_matrix(all_labels, all_preds)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=np.arange(10), yticklabels=np.arange(10))
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    plt.title('Confusion Matrix - Generated Samples')
+    plt.savefig('confusion_matrix_generated.png')
 
 # Load the generator model
 generator = Generator(img_dim=latent_dim, class_label_size=num_classes, Image_size=28 * 28).to(device)
