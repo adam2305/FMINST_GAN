@@ -14,7 +14,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load Fashion MNIST test dataset
 transform = transforms.Compose([
     transforms.Grayscale(num_output_channels=3),  # Convert grayscale images to 3 channels
-    transforms.Resize((224, 224)),  # Resize images to 224x224 for ResNet
+    transforms.Resize((224, 224)),  # Resize images to 224x224 for MobileNet
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5,), std=(0.5,))
 ])
@@ -22,9 +22,9 @@ transform = transforms.Compose([
 test_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=False, transform=transform, download=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
-# Define ResNet-18 model
-model = models.resnet18(pretrained=True)
-model.fc = nn.Linear(model.fc.in_features, 10)  # Modify the last layer for 10 classes
+# Define MobileNet model
+model = models.mobilenet_v2(pretrained=True)
+model.classifier[1] = nn.Linear(model.classifier[1].in_features, 10)  # Modify the last layer for 10 classes
 model = model.to(device)
 
 # Loss and optimizer
