@@ -29,23 +29,24 @@ def generate_images(epoch_number):
 
     return gan_img_test_list
 
-def save_all_images(epochs):
-    rows = epochs
+def save_all_images():
+    epochs = [10, 50, 100, 150, 200]
+    rows = len(epochs)
     cols = 10
-    fig, axes = plt.subplots(rows, cols, figsize=(16, 16 * rows / cols))
-    for epoch in range(1, epochs + 1):
-        gan_img_test_list = generate_images(epoch * 10)
+    fig, axes = plt.subplots(rows, cols, figsize=(15, 15 * rows / cols))
+    for row, epoch in enumerate(epochs):
+        gan_img_test_list = generate_images(epoch)
         for i, img in enumerate(gan_img_test_list):
-            ax = axes[epoch - 1, i]
+            ax = axes[row, i]
             ax.imshow(img, cmap='gray')
             if i == 0:
-                ax.set_ylabel(f"Epoch {epoch * 10}", fontsize=12)
+                ax.set_ylabel(f"Epoch {epoch}", fontsize=12)
             ax.set_title(class_names[i])
             ax.axis('on')
     plt.tight_layout()
-    plt.savefig('compare/all_epochs.png')
+    plt.savefig('images/all_epochs.png')
     plt.close()
 
 if __name__ == '__main__':
     os.makedirs('images', exist_ok=True)
-    save_all_images(20)  # Adjust the number of epochs if necessary
+    save_all_images()
