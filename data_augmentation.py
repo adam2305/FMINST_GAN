@@ -91,6 +91,7 @@ combined_dataset = ConcatDataset([train_dataset, generated_dataset])
 combined_loader = DataLoader(dataset=combined_dataset, batch_size=batch_size, shuffle=True)
 
 # Training loop
+# Training loop
 for epoch in tqdm(range(num_epochs)):
     model.train()
     running_loss = 0.0
