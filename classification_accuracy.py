@@ -29,6 +29,9 @@ transform = transforms.Compose([
 test_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=False, transform=transform, download=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
+train_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=True, transform=transform, download=True)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+
 # Define a simple CNN model
 class SimpleCNN(nn.Module):
     def __init__(self):
@@ -58,7 +61,7 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 for epoch in tqdm(range(num_epochs)):
     model.train()
     running_loss = 0.0
-    for images, labels in test_loader:
+    for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device)
 
         # Forward pass
