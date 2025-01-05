@@ -12,13 +12,10 @@ def generate_images(epoch_number):
     state_dict = torch.load(f'checkpoints/generator_epoch_{epoch_number}.pth', map_location=device)
     new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     generator.load_state_dict(new_state_dict)
-
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
-
     noise_test = torch.randn(img_dim).unsqueeze(0).to(device)
     label_list = [torch.LongTensor([x]).to(device) for x in range(10)]
-
     generator.eval()
     gan_img_test_list = []
     for label in label_list:

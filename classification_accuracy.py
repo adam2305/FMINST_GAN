@@ -10,7 +10,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Configuration
 batch_size = 64
 num_epochs = 10
 learning_rate = 0.001
@@ -19,9 +18,8 @@ num_classes = 10
 samples_per_class = 1000
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load Fashion MNIST test dataset
 transform = transforms.Compose([
-    transforms.Resize((28, 28)),  # Resize images to 28x28 for the simple CNN
+    transforms.Resize((28, 28)),
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5,), std=(0.5,))
 ])
@@ -32,7 +30,6 @@ test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=Tr
 train_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=True, transform=transform, download=True)
 train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 
-# Define a simple CNN model
 class SimpleCNN(nn.Module):
     def __init__(self):
         super(SimpleCNN, self).__init__()
@@ -53,22 +50,16 @@ class SimpleCNN(nn.Module):
 
 model = SimpleCNN().to(device)
 
-# Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# Training loop
 for epoch in tqdm(range(num_epochs)):
     model.train()
     running_loss = 0.0
     for images, labels in train_loader:
         images, labels = images.to(device), labels.to(device)
-
-        # Forward pass
         outputs = model(images)
         loss = criterion(outputs, labels)
-
-        # Backward pass and optimization
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -77,7 +68,6 @@ for epoch in tqdm(range(num_epochs)):
 
     print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(test_loader):.4f}")
 
-# Validation loop
 model.eval()
 correct = 0
 total = 0
@@ -96,7 +86,6 @@ with torch.no_grad():
 accuracy = 100 * correct / total
 print(f'Validation Accuracy: {accuracy:.2f}%')
 
-# Save confusion matrix for validation samples
 cm = confusion_matrix(all_labels, all_preds)
 plt.figure(figsize=(10, 8))
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=np.arange(10), yticklabels=np.arange(10))
@@ -105,7 +94,6 @@ plt.ylabel('True')
 plt.title('Confusion Matrix - Validation Samples')
 plt.savefig('confusion_matrix_validation.png')
 
-# Function to generate samples
 def generate_samples(generator, latent_dim, num_classes, samples_per_class, device):
     generator.eval()
     generated_images = []
@@ -123,7 +111,6 @@ def generate_samples(generator, latent_dim, num_classes, samples_per_class, devi
     generated_labels = torch.cat(generated_labels)
     return generated_images, generated_labels
 
-# Function to evaluate CNN model on generated samples
 def evaluate_on_generated_samples(model, generator, latent_dim, num_classes, samples_per_class, device):
     generated_images, generated_labels = generate_samples(generator, latent_dim, num_classes, samples_per_class, device)
     transform = transforms.Compose([transforms.Normalize(mean=(0.5,), std=(0.5,))])
@@ -149,7 +136,6 @@ def evaluate_on_generated_samples(model, generator, latent_dim, num_classes, sam
     accuracy = 100 * correct / total
     print(f'Generated Samples Accuracy: {accuracy:.2f}%')
 
-    # Save confusion matrix for generated samples
     cm = confusion_matrix(all_labels, all_preds)
     plt.figure(figsize=(10, 8))
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=np.arange(10), yticklabels=np.arange(10))
@@ -158,11 +144,9 @@ def evaluate_on_generated_samples(model, generator, latent_dim, num_classes, sam
     plt.title('Confusion Matrix - Generated Samples')
     plt.savefig('confusion_matrix_generated.png')
 
-# Load the generator model
 generator = Generator(img_dim=latent_dim, class_label_size=num_classes, Image_size=28 * 28).to(device)
 state_dict = torch.load('checkpoints/generator_epoch_200.pth', map_location=device)
 new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
 generator.load_state_dict(new_state_dict)
 
-# Evaluate the CNN model on generated samples
 evaluate_on_generated_samples(model, generator, latent_dim, num_classes, samples_per_class, device)

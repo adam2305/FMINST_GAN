@@ -10,7 +10,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Configuration
 batch_size = 64
 num_epochs = 10
 learning_rate = 0.001
@@ -19,9 +18,8 @@ num_classes = 10
 samples_per_class = 500
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load Fashion MNIST test dataset
 transform = transforms.Compose([
-    transforms.Resize((28, 28)),  # Resize images to 28x28 for the simple CNN
+    transforms.Resize((28, 28)),
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5,), std=(0.5,))
 ])
@@ -29,7 +27,6 @@ transform = transforms.Compose([
 test_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=False, transform=transform, download=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
-# Define a simple CNN model
 class SimpleCNN(nn.Module):
     def __init__(self):
         super(SimpleCNN, self).__init__()
@@ -50,11 +47,9 @@ class SimpleCNN(nn.Module):
 
 model = SimpleCNN().to(device)
 
-# Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-# Function to generate samples
 def generate_samples(generator, latent_dim, num_classes, samples_per_class, device):
     generator.eval()
     generated_images = []
@@ -67,36 +62,28 @@ def generate_samples(generator, latent_dim, num_classes, samples_per_class, devi
             fake_images = generator(noise, labels)
             generated_images.append(fake_images)
             generated_labels.append(labels)
-
     generated_images = torch.cat(generated_images)
     generated_labels = torch.cat(generated_labels)
     return generated_images, generated_labels
 
-# Load the generator model
 generator = Generator(img_dim=latent_dim, class_label_size=num_classes, Image_size=28 * 28).to(device)
 state_dict = torch.load('checkpoints/generator_epoch_200.pth', map_location=device)
 new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
 generator.load_state_dict(new_state_dict)
 
-# Generate 5000 samples (500 per class)
 generated_images, generated_labels = generate_samples(generator, latent_dim, num_classes, samples_per_class, device)
 transform = transforms.Compose([transforms.Normalize(mean=(0.5,), std=(0.5,))])
 generated_images = transform(generated_images)
 generated_dataset = TensorDataset(generated_images.unsqueeze(1), generated_labels)
 generated_loader = DataLoader(dataset=generated_dataset, batch_size=batch_size, shuffle=True)
 
-# Training loop
 for epoch in tqdm(range(num_epochs)):
     model.train()
     running_loss = 0.0
     for images, labels in generated_loader:
         images, labels = images.to(device), labels.to(device)
-
-        # Forward pass
         outputs = model(images)
         loss = criterion(outputs, labels)
-
-        # Backward pass and optimization
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -105,7 +92,6 @@ for epoch in tqdm(range(num_epochs)):
 
     print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(generated_loader):.4f}")
 
-# Validation loop
 model.eval()
 correct = 0
 total = 0
@@ -124,7 +110,6 @@ with torch.no_grad():
 accuracy = 100 * correct / total
 print(f'Validation Accuracy: {accuracy:.2f}%')
 
-# Save confusion matrix for validation samples
 cm = confusion_matrix(all_labels, all_preds)
 plt.figure(figsize=(10, 8))
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=np.arange(10), yticklabels=np.arange(10))
