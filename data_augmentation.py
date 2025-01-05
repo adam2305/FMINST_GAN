@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, TensorDataset, ConcatDataset
+from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 from model import Generator
 from sklearn.metrics import confusion_matrix
@@ -16,19 +16,17 @@ num_epochs = 10
 learning_rate = 0.001
 latent_dim = 100
 num_classes = 10
-samples_per_class = 200
+samples_per_class = 500
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load Fashion MNIST train and test datasets
+# Load Fashion MNIST test dataset
 transform = transforms.Compose([
     transforms.Resize((28, 28)),  # Resize images to 28x28 for the simple CNN
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5,), std=(0.5,))
 ])
 
-train_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=True, transform=transform, download=True)
 test_dataset = datasets.FashionMNIST(root='data/FashionMNIST/', train=False, transform=transform, download=True)
-train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
 # Define a simple CNN model
@@ -80,22 +78,18 @@ state_dict = torch.load('checkpoints/generator_epoch_200.pth', map_location=devi
 new_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
 generator.load_state_dict(new_state_dict)
 
-# Generate 2000 samples (200 per class)
+# Generate 5000 samples (500 per class)
 generated_images, generated_labels = generate_samples(generator, latent_dim, num_classes, samples_per_class, device)
 transform = transforms.Compose([transforms.Normalize(mean=(0.5,), std=(0.5,))])
 generated_images = transform(generated_images)
 generated_dataset = TensorDataset(generated_images.unsqueeze(1), generated_labels)
+generated_loader = DataLoader(dataset=generated_dataset, batch_size=batch_size, shuffle=True)
 
-# Combine train dataset with generated dataset
-combined_dataset = ConcatDataset([train_dataset, generated_dataset])
-combined_loader = DataLoader(dataset=combined_dataset, batch_size=batch_size, shuffle=True)
-
-# Training loop
 # Training loop
 for epoch in tqdm(range(num_epochs)):
     model.train()
     running_loss = 0.0
-    for images, labels in combined_loader:
+    for images, labels in generated_loader:
         images, labels = images.to(device), labels.to(device)
 
         # Forward pass
@@ -109,7 +103,7 @@ for epoch in tqdm(range(num_epochs)):
 
         running_loss += loss.item()
 
-    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(combined_loader):.4f}")
+    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(generated_loader):.4f}")
 
 # Validation loop
 model.eval()
